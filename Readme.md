@@ -92,7 +92,7 @@ ASL-Sign-Recognition/
 │   ├── loss.png           # Training loss plot
 │   └── accuracy.png       # Training accuracy plot
 │── notebooks/
-    └── notebook.py        # Any Jupyter notebooks
+    └── Asl_hand_gesture_classification.py        # Any Jupyter notebooks
 ```
 
 ---
@@ -102,7 +102,7 @@ ASL-Sign-Recognition/
 ### 1️⃣ Clone the repository
 
 ```bash
-git clone https://github.com/your-username/asl-sign-recognition.git
+git clone https://github.com/huzaifa12466/Asl-hand-gesture-classification.git
 ```
 
 ### 2️⃣ Install dependencies
