@@ -1,4 +1,6 @@
 # ✋ ASL Sign Language Recognition
+**Live Demo:** [Streamlit App](https://asl-hand-gesture-classification-mphwf9nopdpth9ohadgsqo.streamlit.app/)
+
 
 This project is a **deep learning-based American Sign Language (ASL) recognition system** built with **PyTorch** and **Streamlit**. It allows users to upload images or capture photos via webcam to recognize ASL letters (A–Z) along with **special signs**: `SPACE`, `DELETE`, and `NOTHING`.
 
