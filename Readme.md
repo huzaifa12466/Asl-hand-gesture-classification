@@ -91,8 +91,8 @@ ASL-Sign-Recognition/
 │── models/
 │   └── model.py           # EfficientNet-B3 architecture & loading
 │── results/
-│   ├── loss.png           # Training loss plot
-│   └── accuracy.png       # Training accuracy plot
+│   ├── loss_curve.png           # Training loss plot
+│   └── accuracy_curve.png       # Training accuracy plot
 │── notebooks/
     └── Asl_hand_gesture_classification.py        # Any Jupyter notebooks
 ```
