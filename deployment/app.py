@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 import streamlit as st
 import cv2
 import sys
+import urllib.request
 import gdown
 
 # Add parent folder for model imports
@@ -14,7 +15,7 @@ from models.model import load_model  # EfficientNet-B3 loader
 
 # ---------------- Model Download & Setup ----------------
 MODEL_PATH = "best_model.pth"
-GDRIVE_FILE_ID = "158dfL0MYHEWUUNBNGyVAKrFAJTkflmjX"  # Replace with your file ID
+GDRIVE_FILE_ID = "158dfL0MYHEWUUNBNGyVAKrFAJTkflmjX"
 GDRIVE_URL = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_CLASSES = 29
@@ -65,26 +66,43 @@ if uploaded_video:
     sentence = []
 
     # ---------------- Haar Cascade Setup ----------------
+    st.info("Checking hand cascade file (hand.xml)...")
     cascade_dir = os.path.join(os.path.dirname(__file__), "haarcascades")
     os.makedirs(cascade_dir, exist_ok=True)
     cascade_path = os.path.join(cascade_dir, "hand.xml")
+    cascade_url = "https://raw.githubusercontent.com/Aravindlivewire/Opencv/master/haarcascade/hand.xml"
 
-    # Auto-download cascade if missing
-    if not os.path.exists(cascade_path):
-        st.info("Downloading hand cascade (hand.xml)...")
-        gdown.download(
-            "https://github.com/Aravindlivewire/Opencv/raw/master/haarcascade/hand.xml",
-            cascade_path,
-            quiet=False
-        )
-        st.success("hand.xml downloaded successfully!")
-
-    # Load hand cascade
-    hand_cascade = cv2.CascadeClassifier(cascade_path)
-    if hand_cascade.empty():
-        st.error("Failed to load hand.xml cascade file. Please check path or re-download.")
+    # Download or refresh file if missing or too small
+    try:
+        if (not os.path.exists(cascade_path)) or (os.path.getsize(cascade_path) < 5000):
+            st.info("Downloading hand.xml (Haar cascade for hand detection)...")
+            urllib.request.urlretrieve(cascade_url, cascade_path)
+            st.success("hand.xml downloaded successfully!")
+    except Exception as e:
+        st.error(f"Error downloading hand.xml: {e}")
         st.stop()
 
+    # Load and verify cascade
+    hand_cascade = cv2.CascadeClassifier(cascade_path)
+    if hand_cascade.empty():
+        st.error("Failed to load hand.xml cascade. Trying fallback method...")
+        try:
+            # Fallback: load directly from URL (no file write)
+            import numpy as np
+            resp = urllib.request.urlopen(cascade_url)
+            xml_bytes = np.asarray(bytearray(resp.read()), dtype=np.uint8)
+            hand_cascade = cv2.CascadeClassifier()
+            hand_cascade.load(cv2.data.haarcascades + 'fist.xml')  # fallback default
+            if hand_cascade.empty():
+                st.error("Fallback cascade also failed. Please check internet connection.")
+                st.stop()
+            else:
+                st.warning("Loaded fallback 'fist.xml' cascade instead of hand.xml.")
+        except Exception as e:
+            st.error(f"Failed to recover cascade: {e}")
+            st.stop()
+
+    # ---------------- Process Video ----------------
     stframe = st.empty()
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     progress_bar = st.progress(0)
@@ -128,11 +146,11 @@ if uploaded_video:
 
     cap.release()
 
-    # Construct final sentence
+    # ---------------- Output Sentence ----------------
     final_sentence = "".join(sentence)
     st.success(f"Detected Sentence: {final_sentence}")
 
-    # Save output video with bounding boxes
+    # ---------------- Save Video ----------------
     save_path = "output_video.mp4"
     if frames:
         height, width, _ = frames[0].shape
