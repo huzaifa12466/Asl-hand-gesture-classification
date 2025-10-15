@@ -3,5 +3,6 @@ torchvision
 streamlit
 Pillow
 gdown
-mediapipe==0.10.11
 streamlit-webrtc
+opencv-python
+
