@@ -1,12 +1,12 @@
-import cv2
+import os
+from PIL import Image
 import torch
 import torchvision.transforms as transforms
-from PIL import Image
 import streamlit as st
+import cv2
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
-import mediapipe as mp
-from models.model import load_model  # Your EfficientNet-B3 loader
+from models.model import load_model  # EfficientNet-B3 loader
 
 # ---------------- Model Setup ----------------
 MODEL_PATH = "best_model.pth"
@@ -33,47 +33,33 @@ def predict(image, model, device):
         _, pred = torch.max(outputs, 1)
     return CLASS_NAMES[pred.item()]
 
-# ---------------- MediaPipe Setup ----------------
-mp_hands = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
+# ---------------- Haar Cascade Setup ----------------
+# You can replace this with your hand cascade xml if you have a better one
+hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # Example placeholder
 
 # ---------------- Video Transformer ----------------
 class ASLVideoTransformer(VideoTransformerBase):
-    def __init__(self):
-        self.hands = mp_hands.Hands(
-            max_num_hands=1,
-            min_detection_confidence=0.7,
-            min_tracking_confidence=0.5
-        )
-
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        results = self.hands.process(img_rgb)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        hands = hand_cascade.detectMultiScale(gray, 1.1, 5)
 
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                mp_drawing.draw_landmarks(img, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-
-                h, w, c = img.shape
-                x_coords = [lm.x for lm in hand_landmarks.landmark]
-                y_coords = [lm.y for lm in hand_landmarks.landmark]
-                x_min, x_max = int(min(x_coords)*w), int(max(x_coords)*w)
-                y_min, y_max = int(min(y_coords)*h), int(max(y_coords)*h)
-
-                hand_crop = img[y_min:y_max, x_min:x_max]
-                if hand_crop.size != 0:
-                    hand_image = Image.fromarray(cv2.cvtColor(hand_crop, cv2.COLOR_BGR2RGB))
-                    label = predict(hand_image, model, DEVICE)
-                    cv2.putText(img, f"Letter: {label}", (x_min, y_min-10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        for (x, y, w, h) in hands:
+            hand_crop = img[y:y+h, x:x+w]
+            if hand_crop.size != 0:
+                hand_image = Image.fromarray(cv2.cvtColor(hand_crop, cv2.COLOR_BGR2RGB))
+                label = predict(hand_image, model, DEVICE)
+                cv2.rectangle(img, (x, y), (x+w, y+h), (0,255,0), 2)
+                cv2.putText(img, f"Letter: {label}", (x, y-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
         return img
 
 # ---------------- Streamlit UI ----------------
-st.title("✋ ASL Real-Time Sign Recognition (Mobile & Desktop)")
+st.title("✋ ASL Real-Time Sign Recognition (Haar Cascade Version)")
+st.write("Mobile & Desktop compatible. Shows bounding box and letter prediction.")
 
 webrtc_streamer(
-    key="asl-stream",
+    key="asl-haar-stream",
     video_transformer_factory=ASLVideoTransformer,
     media_stream_constraints={"video": True, "audio": False},
     async_transform=True
