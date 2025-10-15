@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms as transforms
 import streamlit as st
 import cv2
+import sys
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import gdown
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
