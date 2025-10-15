@@ -135,7 +135,7 @@ if uploaded_video:
             sentence.append(max(set(letters_in_frame), key=letters_in_frame.count))
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        stframe.image(frame_rgb, channels="RGB", use_column_width=True)
+        stframe.image(frame_rgb, channels="RGB", use_cointainer_width=True)
         frames.append(frame_rgb)
 
         current_frame += 1
@@ -156,4 +156,3 @@ if uploaded_video:
             out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
         out.release()
         st.video(save_path)
-
