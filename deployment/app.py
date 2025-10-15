@@ -63,7 +63,7 @@ if uploaded_video:
     sentence = []
 
     # Haar cascade for hand detection
-    hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # replace with proper hand cascade if available
+    hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'hand.xml')  # replace with proper hand cascade if available
 
     stframe = st.empty()
 
