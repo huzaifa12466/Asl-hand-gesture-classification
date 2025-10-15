@@ -6,7 +6,7 @@ import streamlit as st
 import cv2
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import gdown
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from models.model import load_model  # EfficientNet-B3 loader
 
 # ---------------- Model Download & Setup ----------------
