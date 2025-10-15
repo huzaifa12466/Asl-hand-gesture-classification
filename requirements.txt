@@ -4,5 +4,5 @@ streamlit
 Pillow
 gdown
 streamlit-webrtc
-opencv-python
+opencv-python-headless
 
