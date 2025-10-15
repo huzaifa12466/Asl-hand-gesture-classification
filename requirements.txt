@@ -3,5 +3,5 @@ torchvision
 streamlit
 Pillow
 gdown
-mediapipe==0.10.12
+mediapipe==0.10.11
 streamlit-webrtc
