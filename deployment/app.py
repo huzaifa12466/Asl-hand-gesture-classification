@@ -1,11 +1,13 @@
 import os
+import tempfile
 from PIL import Image
 import torch
 import torchvision.transforms as transforms
 import streamlit as st
 import cv2
+import sys
 import gdown
-import tempfile
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from models.model import load_model  # EfficientNet-B3 loader
 
 # ---------------- Model Download & Setup ----------------
@@ -39,6 +41,7 @@ val_transform = transforms.Compose([
 ])
 
 def predict(image, model, device):
+    """Predicts a single hand image and returns the ASL letter."""
     tensor = val_transform(image).unsqueeze(0).to(device)
     with torch.no_grad():
         outputs = model(tensor)
@@ -47,7 +50,7 @@ def predict(image, model, device):
 
 # ---------------- Streamlit UI ----------------
 st.title("✋ ASL Video Hand Gesture Recognition")
-st.write("Upload a video. Each frame will be analyzed, bounding box drawn, and letters detected. Sentence constructed at the end.")
+st.write("Upload a video. Each frame will be analyzed, bounding boxes drawn, and letters detected. Sentence constructed at the end.")
 
 uploaded_video = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
@@ -59,10 +62,14 @@ if uploaded_video:
     frames = []
     sentence = []
 
-    # Optional: Haar cascade for hand detection
-    hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # replace with proper hand cascade
+    # Haar cascade for hand detection
+    hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # replace with proper hand cascade if available
 
     stframe = st.empty()
+
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    progress_bar = st.progress(0)
+    current_frame = 0
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -91,16 +98,25 @@ if uploaded_video:
         stframe.image(frame_rgb, channels="RGB", use_column_width=True)
         frames.append(frame_rgb)
 
+        current_frame += 1
+        progress_bar.progress(min(current_frame / frame_count, 1.0))
+
     cap.release()
 
-    # Construct sentence
+    # Construct final sentence
     final_sentence = "".join(sentence)
     st.success(f"Detected Sentence: {final_sentence}")
 
-    # Optional: save output video with bounding boxes
+    # Save output video with bounding boxes
     save_path = "output_video.mp4"
-    height, width, _ = frames[0].shape
-    out = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (width, height))
+    if frames:
+        height, width, _ = frames[0].shape
+        out = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (width, height))
+        for f in frames:
+            out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
+        out.release()
+        st.video(save_path)
+
 
     for f in frames:
         out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
