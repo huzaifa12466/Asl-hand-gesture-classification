@@ -5,21 +5,34 @@ import torchvision.transforms as transforms
 import streamlit as st
 import cv2
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import gdown
 
 from models.model import load_model  # EfficientNet-B3 loader
 
-# ---------------- Model Setup ----------------
+# ---------------- Model Download & Setup ----------------
 MODEL_PATH = "best_model.pth"
+GDRIVE_FILE_ID = "158dfL0MYHEWUUNBNGyVAKrFAJTkflmjX"  # <-- Replace with your file ID
+GDRIVE_URL = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_CLASSES = 29
 
+# Auto-download model if missing
+if not os.path.exists(MODEL_PATH):
+    st.info("Downloading model from Google Drive...")
+    gdown.download(GDRIVE_URL, MODEL_PATH, quiet=False)
+    st.success("Model downloaded successfully!")
+
+# Load model
 model = load_model(num_classes=NUM_CLASSES, model_path=MODEL_PATH, device=DEVICE)
+
+# ---------------- Class Names ----------------
 CLASS_NAMES = [
     'Q','U','A','del','nothing','F','V','B','S','H',
     'C','Z','D','N','L','Y','I','E','J','T',
     'O','R','P','W','G','space','M','K','X'
 ]
 
+# ---------------- Image Transforms ----------------
 val_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -34,7 +47,7 @@ def predict(image, model, device):
     return CLASS_NAMES[pred.item()]
 
 # ---------------- Haar Cascade Setup ----------------
-# You can replace this with your hand cascade xml if you have a better one
+# Replace with a proper hand cascade XML if available
 hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # Example placeholder
 
 # ---------------- Video Transformer ----------------
@@ -55,7 +68,7 @@ class ASLVideoTransformer(VideoTransformerBase):
         return img
 
 # ---------------- Streamlit UI ----------------
-st.title("✋ ASL Real-Time Sign Recognition (Haar Cascade Version)")
+st.title("✋ ASL Real-Time Sign Recognition (Haar Cascade + gdown)")
 st.write("Mobile & Desktop compatible. Shows bounding box and letter prediction.")
 
 webrtc_streamer(
@@ -64,4 +77,3 @@ webrtc_streamer(
     media_stream_constraints={"video": True, "audio": False},
     async_transform=True
 )
-
