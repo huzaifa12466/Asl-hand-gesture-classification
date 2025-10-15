@@ -4,15 +4,13 @@ import torch
 import torchvision.transforms as transforms
 import streamlit as st
 import cv2
-import sys
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import gdown
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import tempfile
 from models.model import load_model  # EfficientNet-B3 loader
 
 # ---------------- Model Download & Setup ----------------
 MODEL_PATH = "best_model.pth"
-GDRIVE_FILE_ID = "158dfL0MYHEWUUNBNGyVAKrFAJTkflmjX"  # <-- Replace with your file ID
+GDRIVE_FILE_ID = "158dfL0MYHEWUUNBNGyVAKrFAJTkflmjX"  # Replace with your file ID
 GDRIVE_URL = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_CLASSES = 29
@@ -47,34 +45,65 @@ def predict(image, model, device):
         _, pred = torch.max(outputs, 1)
     return CLASS_NAMES[pred.item()]
 
-# ---------------- Haar Cascade Setup ----------------
-# Replace with a proper hand cascade XML if available
-hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # Example placeholder
+# ---------------- Streamlit UI ----------------
+st.title("✋ ASL Video Hand Gesture Recognition")
+st.write("Upload a video. Each frame will be analyzed, bounding box drawn, and letters detected. Sentence constructed at the end.")
 
-# ---------------- Video Transformer ----------------
-class ASLVideoTransformer(VideoTransformerBase):
-    def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+uploaded_video = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
+
+if uploaded_video:
+    tfile = tempfile.NamedTemporaryFile(delete=False)
+    tfile.write(uploaded_video.read())
+    cap = cv2.VideoCapture(tfile.name)
+
+    frames = []
+    sentence = []
+
+    # Optional: Haar cascade for hand detection
+    hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'aGest.xml')  # replace with proper hand cascade
+
+    stframe = st.empty()
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         hands = hand_cascade.detectMultiScale(gray, 1.1, 5)
 
+        letters_in_frame = []
+
         for (x, y, w, h) in hands:
-            hand_crop = img[y:y+h, x:x+w]
+            hand_crop = frame[y:y+h, x:x+w]
             if hand_crop.size != 0:
                 hand_image = Image.fromarray(cv2.cvtColor(hand_crop, cv2.COLOR_BGR2RGB))
                 label = predict(hand_image, model, DEVICE)
-                cv2.rectangle(img, (x, y), (x+w, y+h), (0,255,0), 2)
-                cv2.putText(img, f"Letter: {label}", (x, y-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
-        return img
+                letters_in_frame.append(label)
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0,255,0), 2)
+                cv2.putText(frame, f"{label}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
 
-# ---------------- Streamlit UI ----------------
-st.title("✋ ASL Real-Time Sign Recognition (Haar Cascade + gdown)")
-st.write("Mobile & Desktop compatible. Shows bounding box and letter prediction.")
+        if letters_in_frame:
+            # Take majority vote in frame
+            sentence.append(max(set(letters_in_frame), key=letters_in_frame.count))
 
-webrtc_streamer(
-    key="asl-haar-stream",
-    video_transformer_factory=ASLVideoTransformer,
-    media_stream_constraints={"video": True, "audio": False},
-    async_transform=True
-)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        stframe.image(frame_rgb, channels="RGB", use_column_width=True)
+        frames.append(frame_rgb)
+
+    cap.release()
+
+    # Construct sentence
+    final_sentence = "".join(sentence)
+    st.success(f"Detected Sentence: {final_sentence}")
+
+    # Optional: save output video with bounding boxes
+    save_path = "output_video.mp4"
+    height, width, _ = frames[0].shape
+    out = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (width, height))
+
+    for f in frames:
+        out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
+    out.release()
+    st.video(save_path)
+
