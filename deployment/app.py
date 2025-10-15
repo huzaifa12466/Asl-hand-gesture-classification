@@ -68,7 +68,7 @@ if uploaded_video:
 
     # ---------------- Haar Cascade Setup (Memory Safe) ----------------
     st.info("Loading hand detection cascade (hand.xml)...")
-    cascade_url = "https://raw.githubusercontent.com/Aravindlivewire/Opencv/master/haarcascade/hand.xml"
+    cascade_url = "https://raw.githubusercontent.com/Balaje/OpenCV/master/haarcascades/hand.xml"
 
     try:
         # Download cascade XML text
