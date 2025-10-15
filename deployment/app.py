@@ -7,6 +7,8 @@ import streamlit as st
 import cv2
 import sys
 import gdown
+
+# Add parent folder for model imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from models.model import load_model  # EfficientNet-B3 loader
 
@@ -62,11 +64,28 @@ if uploaded_video:
     frames = []
     sentence = []
 
-    # Haar cascade for hand detection
-    hand_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'fist.xml')
+    # ---------------- Haar Cascade Setup ----------------
+    cascade_dir = os.path.join(os.path.dirname(__file__), "haarcascades")
+    os.makedirs(cascade_dir, exist_ok=True)
+    cascade_path = os.path.join(cascade_dir, "hand.xml")
+
+    # Auto-download cascade if missing
+    if not os.path.exists(cascade_path):
+        st.info("Downloading hand cascade (hand.xml)...")
+        gdown.download(
+            "https://github.com/Aravindlivewire/Opencv/raw/master/haarcascade/hand.xml",
+            cascade_path,
+            quiet=False
+        )
+        st.success("hand.xml downloaded successfully!")
+
+    # Load hand cascade
+    hand_cascade = cv2.CascadeClassifier(cascade_path)
+    if hand_cascade.empty():
+        st.error("Failed to load hand.xml cascade file. Please check path or re-download.")
+        st.stop()
 
     stframe = st.empty()
-
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     progress_bar = st.progress(0)
     current_frame = 0
@@ -77,7 +96,12 @@ if uploaded_video:
             break
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        hands = hand_cascade.detectMultiScale(gray, 1.1, 5)
+
+        try:
+            hands = hand_cascade.detectMultiScale(gray, 1.1, 5)
+        except cv2.error as e:
+            st.error(f"OpenCV error during detection: {e}")
+            continue
 
         letters_in_frame = []
 
@@ -88,7 +112,8 @@ if uploaded_video:
                 label = predict(hand_image, model, DEVICE)
                 letters_in_frame.append(label)
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0,255,0), 2)
-                cv2.putText(frame, f"{label}", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+                cv2.putText(frame, f"{label}", (x, y-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
 
         if letters_in_frame:
             # Take majority vote in frame
@@ -116,10 +141,3 @@ if uploaded_video:
             out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
         out.release()
         st.video(save_path)
-
-
-    for f in frames:
-        out.write(cv2.cvtColor(f, cv2.COLOR_RGB2BGR))
-    out.release()
-    st.video(save_path)
-
