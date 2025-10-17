@@ -4,6 +4,8 @@ from PIL import Image
 import torch
 import torchvision.transforms as transforms
 import streamlit as st
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from models.model import load_model  # EfficientNet-B3 loader
 
 # ---------------- Model Setup ----------------
